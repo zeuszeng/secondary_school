@@ -1,6 +1,6 @@
 # Mya 周中集合复盘单｜可编辑内容源稿
 
-> 主题：集合概念、属于关系与表示法。适用进度：人教 A 版必修第一册 1.1；预计独立完成 10–15 分钟。
+> 主题：集合概念、属于关系与表示法。适用进度：人教 A 版必修第一册 1.1；预计独立完成 10-15 分钟。
 >
 > 题目与提示均依据 `content/batch-2/01-set-sync-course.md` 自编；不使用集合运算。
 
@@ -66,4 +66,4 @@
 
 - 成品：`mya-weekly-set-review.pdf`，A4 两页，黑白打印。第一页只含学习卡、题目与演算区；第二页才给分级提示和答案。
 - 视觉层级：灰度不用作语义区分；通过字号、粗细、实线/虚线边框和留白区分学习卡、题目、书写区与答案。
-- 生成器：`generate_weekly_set_review.py`。使用 macOS 的 `Arial Unicode.ttf`，以正确嵌入中文和集合符号。
+- 生成器：`generate_weekly_set_review.py`。按固定顺序扫描 macOS 的 Arial Unicode 与 Linux 常见的 Noto Sans CJK、文泉驿、Droid、AR PL UKai TrueType/TTC 字体；候选字体必须覆盖中文及 `∈`、`∉`、`⊆`、`≤`、`≥`。运行时会输出实际选用的字体路径；找不到合格字体时会给出安装与路径提示。

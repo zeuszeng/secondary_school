@@ -12,7 +12,20 @@ from reportlab.pdfgen.canvas import Canvas
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "mya-weekly-set-review.pdf"
-FONT_PATH = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
+# Fixed preference order: macOS first, then widely packaged Linux CJK fonts.
+# ReportLab requires TrueType outlines, so CFF-only OTF candidates are omitted.
+FONT_CANDIDATES = (
+    Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+    Path("/Library/Fonts/Arial Unicode.ttf"),
+    Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+    Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+    Path("/usr/share/fonts/truetype/noto/NotoSansCJKsc-Regular.ttf"),
+    Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+    Path("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"),
+    Path("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"),
+    Path("/usr/share/fonts/truetype/arphic/ukai.ttc"),
+)
+REQUIRED_GLYPHS = frozenset("集合概念属于关系与表示法提示答案一级二级元素范围条件整数偶数" "∈∉⊆≤≥")
 PAGE_W, PAGE_H = A4
 MARGIN = 36
 INK = HexColor("#151515")
@@ -20,18 +33,39 @@ SOFT = HexColor("#F2F2F2")
 LINE = HexColor("#777777")
 
 
-def setup_font():
-    pdfmetrics.registerFont(TTFont("ArialUnicode", FONT_PATH))
-    return "ArialUnicode"
+def setup_font(candidates=FONT_CANDIDATES):
+    """Register the first installed font that covers required CJK and math glyphs."""
+    problems = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            font = TTFont("WorksheetCJK", str(path), subfontIndex=0)
+            missing = sorted(char for char in REQUIRED_GLYPHS if ord(char) not in font.face.charToGlyph)
+            if missing:
+                problems.append(f"{path}: missing {''.join(missing)}")
+                continue
+            pdfmetrics.registerFont(font)
+            return "WorksheetCJK", path
+        except Exception as error:
+            problems.append(f"{path}: {error}")
+
+    checked = "\n  - ".join(str(path) for path in candidates)
+    detail = f"\nUnsupported candidates:\n  - " + "\n  - ".join(problems) if problems else ""
+    raise RuntimeError(
+        "No supported CJK Unicode TrueType font was found for this worksheet. "
+        "Install a Noto Sans CJK TrueType/TTC font at one of these paths, then rerun:\n  - "
+        f"{checked}{detail}"
+    )
 
 
-def draw_text(c, text, x, y, size=10, font="ArialUnicode", leading=None):
+def draw_text(c, text, x, y, size=10, font="WorksheetCJK", leading=None):
     c.setFillColor(INK)
     c.setFont(font, size)
     c.drawString(x, y, text)
 
 
-def paragraph(c, lines, x, top, size=9, leading=13, font="ArialUnicode"):
+def paragraph(c, lines, x, top, size=9, leading=13, font="WorksheetCJK"):
     for index, line in enumerate(lines):
         draw_text(c, line, x, top - index * leading, size, font)
 
@@ -66,10 +100,10 @@ def writing_lines(c, x, y_top, width, count, gap=16):
 
 def header(c, page, title, subtitle):
     draw_text(c, "Mya 数学 · 周中复盘", MARGIN, PAGE_H - 39, 9)
-    c.setFont("ArialUnicode", 19)
+    c.setFont("WorksheetCJK", 19)
     c.drawString(MARGIN, PAGE_H - 66, title)
     draw_text(c, subtitle, MARGIN, PAGE_H - 84, 9)
-    c.setFont("ArialUnicode", 8)
+    c.setFont("WorksheetCJK", 8)
     c.drawRightString(PAGE_W - MARGIN, PAGE_H - 39, f"第 {page} / 2 页")
     rule(c, MARGIN, PAGE_H - 94, PAGE_W - MARGIN, PAGE_H - 94, 1.2)
 
@@ -93,7 +127,7 @@ def question_box(c, number, title, prompt, y_top, height, lines, solution_label=
 
 
 def page_one(c):
-    header(c, 1, "集合小复盘", "主题：集合概念、属于关系与表示法  ·  建议 10–15 分钟")
+    header(c, 1, "集合小复盘", "主题：集合概念、属于关系与表示法  ·  建议 10-15 分钟")
     x, w = MARGIN, PAGE_W - 2 * MARGIN
     card_top, card_h = PAGE_H - 109, 76
     rounded_box(c, x, card_top - card_h, w, card_h, fill=SOFT)
@@ -165,20 +199,21 @@ def page_two(c):
         ["D 是 2 到 8 的偶整数，别漏 x∈Z。"],
         ["C={-2,-1,0,1,2}；D={x∈Z|2≤x≤8 且 2|x}。范围与偶数条件完整的同义写法也正确。"],
     ])
-    draw_text(c, "复盘一句话：元素—集合用 ∈/∉；集合—集合才讨论 ⊆。", MARGIN, 39, 8)
+    draw_text(c, "复盘一句话：元素-集合用 ∈/∉；集合-集合才讨论 ⊆。", MARGIN, 39, 8)
     c.showPage()
 
 
 def main():
-    font = setup_font()
+    font, font_path = setup_font()
     canvas = Canvas(str(OUT), pagesize=A4, pageCompression=1)
     canvas.setTitle("Mya 周中集合复盘单")
     canvas.setAuthor("Secondary School Content Team")
     canvas.setSubject("集合概念、属于关系与表示法｜黑白打印练习")
-    canvas.setCreator("ReportLab")
+    canvas.setCreator(f"ReportLab | font: {font_path}")
     page_one(canvas)
     page_two(canvas)
     canvas.save()
+    print(f"Selected font: {font_path}")
     print(OUT)
 
 
